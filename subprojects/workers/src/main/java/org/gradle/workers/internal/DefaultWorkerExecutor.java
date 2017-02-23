@@ -54,14 +54,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class DefaultWorkerExecutor implements WorkerExecutor {
     private final ListeningExecutorService executor;
     private final WorkerDaemonFactory workerDaemonFactory;
+    private final WorkerDaemonFactory workerInProcessFactory;
     private final Class<? extends WorkerDaemonProtocol> serverImplementationClass;
     private final FileResolver fileResolver;
     private final BuildOperationWorkerRegistry buildOperationWorkerRegistry;
     private final BuildOperationExecutor buildOperationExecutor;
     private final AsyncWorkTracker asyncWorkTracker;
 
-    public DefaultWorkerExecutor(WorkerDaemonFactory workerDaemonFactory, FileResolver fileResolver, Class<? extends WorkerDaemonProtocol> serverImplementationClass, ExecutorFactory executorFactory, BuildOperationWorkerRegistry buildOperationWorkerRegistry, BuildOperationExecutor buildOperationExecutor, AsyncWorkTracker asyncWorkTracker) {
+    public DefaultWorkerExecutor(WorkerDaemonFactory workerDaemonFactory, WorkerDaemonFactory workerInProcessFactory, FileResolver fileResolver, Class<? extends WorkerDaemonProtocol> serverImplementationClass, ExecutorFactory executorFactory, BuildOperationWorkerRegistry buildOperationWorkerRegistry, BuildOperationExecutor buildOperationExecutor, AsyncWorkTracker asyncWorkTracker) {
         this.workerDaemonFactory = workerDaemonFactory;
+        this.workerInProcessFactory = workerInProcessFactory;
         this.fileResolver = fileResolver;
         this.serverImplementationClass = serverImplementationClass;
         this.executor = MoreExecutors.listeningDecorator(executorFactory.create("Worker Daemon Execution"));
@@ -77,18 +79,19 @@ public class DefaultWorkerExecutor implements WorkerExecutor {
         WorkSpec spec = new ParamSpec(configuration.getParams());
         String description = configuration.getDisplayName() != null ? configuration.getDisplayName() : actionClass.getName();
         WorkerDaemonAction action = new WorkerDaemonRunnableAction(description, actionClass);
-        return submit(action, spec, configuration.getForkOptions().getWorkingDir(), getDaemonForkOptions(actionClass, configuration));
+        return submit(action, spec, configuration.getForkOptions().getWorkingDir(), configuration.isFork(), getDaemonForkOptions(actionClass, configuration));
     }
 
-    private ListenableFuture<?> submit(final WorkerDaemonAction action, final WorkSpec spec, final File workingDir, final DaemonForkOptions daemonForkOptions) {
+    private ListenableFuture<?> submit(final WorkerDaemonAction action, final WorkSpec spec, final File workingDir, final boolean fork, final DaemonForkOptions daemonForkOptions) {
         final Operation currentWorkerOperation = buildOperationWorkerRegistry.getCurrent();
         final BuildOperationExecutor.Operation currentBuildOperation = buildOperationExecutor.getCurrentOperation();
         ListenableFuture<DefaultWorkResult> workerDaemonResult = executor.submit(new Callable<DefaultWorkResult>() {
             @Override
             public DefaultWorkResult call() throws Exception {
                 try {
-                    WorkerDaemon daemon = workerDaemonFactory.getDaemon(serverImplementationClass, workingDir, daemonForkOptions);
-                    return daemon.execute(action, spec, currentWorkerOperation, currentBuildOperation);
+                    WorkerDaemonFactory workerFactory = fork ? workerDaemonFactory : workerInProcessFactory;
+                    WorkerDaemon worker = workerFactory.getDaemon(serverImplementationClass, workingDir, daemonForkOptions);
+                    return worker.execute(action, spec, currentWorkerOperation, currentBuildOperation);
                 } catch (Throwable t) {
                     throw new WorkExecutionException(action.getDescription(), t);
                 }
