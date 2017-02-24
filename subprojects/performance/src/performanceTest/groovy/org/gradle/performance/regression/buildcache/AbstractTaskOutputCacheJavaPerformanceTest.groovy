@@ -30,8 +30,8 @@ class AbstractTaskOutputCacheJavaPerformanceTest extends AbstractCrossVersionPer
          * Since every second build is a 'clean', we need more iterations
          * than usual to get reliable results.
          */
-        runner.warmUpRuns = 10
-        runner.runs = 26
+        runner.warmUpRuns = 6
+        runner.runs = 12
         runner.setupCleanupOnOddRounds()
         runner.args = ['-Dorg.gradle.cache.tasks=true']
         runner.targetVersions = ["3.5-20170221000043+0000"]
@@ -48,7 +48,7 @@ class AbstractTaskOutputCacheJavaPerformanceTest extends AbstractCrossVersionPer
     def getScenarios() {
         [
             ['largeMonolithicJavaProject', '4g', ['assemble']],
-            ['largeJavaMultiProject', '4g', ['assemble']]
+            ['largeJavaMultiProject', '8g', ['assemble']]
         ]
     }
 
