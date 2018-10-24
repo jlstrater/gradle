@@ -19,7 +19,7 @@ This chapter provides the information you need to migrate your older Gradle 4.x 
 
 We recommend the following steps for all users:
 
- . If you are not already on version 4.10.2, follow the directions <<#changes_5.0,below>> to upgrade your project to 4.10.2.
+ . If you are not already on version 4.10.2, read the directions <<#upgrading_by_version,below>> to upgrade your project to 4.10.2. Stop before starting the <<#changes_5.0, upgrading from 4.10>> section.
  . Try running `gradle help --scan` and view the https://gradle.com/enterprise/releases/2018.4/#identify-usages-of-deprecated-gradle-functionality[deprecations view] of the generated build scan.
 +
 image::deprecations.png[Deprecations View of a Gradle Build Scan]
@@ -34,6 +34,7 @@ Some plugins will break with this new version of Gradle, for example because the
 In particular, you will need to use at least a 2.x version of the https://plugins.gradle.org/plugin/com.github.johnrengelman.shadow[*Shadow Plugin*].
 . Run `gradle wrapper --gradle-version 5.0` to update the project to 5.0
 . Move to Java 8 or higher if you haven't already. Whereas Gradle 4.x requires Java 7, Gradle 5 requires Java 8 to run.
+. Read the <<#changes_5.0, upgrading from 4.10>> section and make any necessary changes.
 . Try to run the project and debug any errors using the <<troubleshooting.adoc#troubleshooting, Troubleshooting Guide>>.
 
 In addition, Gradle has added several significant new and improved features that you should consider using in your builds:
@@ -48,12 +49,27 @@ Other notable changes to be aware of that may break your build include:
  * A change that means you should <<#rel4.8:configure_internal_tasks,configure existing `wrapper` and `init` tasks>> rather than defining your own.
  * The <<#rel4.8:pom_wildcard_exclusions,honoring of implicit wildcards in Maven POM exclusions>>, which may result in dependencies being excluded that weren't before.
  * A <<#rel4.6:annotation_processor_configuration,change to the way you add Java annotation processors to a project>>.
+ * A change in behavior related to <<#rel5.0:dependency_resolution,dependency resolution>> may impact a small number of users.
+ * The <<#rel5.0:default_memory_settings,default memory settings>> have been reduced.
+ * The <<#rel5.0:default_tool_versions,default versions>> of several code quality plugins have been updated.
+ * Several libraries used by Gradle have been <<#rel5.0:library_upgrades, updated>>.
+ * There have been several changes to <<#rel5.0:changes_to_default_task,property factory methods on DefaultTask>> that may impact the creation of custom tasks.
+
+[[upgrading_by_version]]
+== Upgrading from 4.10 and earlier
+
+Skip down to the section that applies to your current Gradle version and work your way back up through this guide until you reach 4.10.
 
 [[changes_5.0]]
-== Upgrading from 4.10 and earlier
+== Upgrading from 4.10
+
+To upgrade from version 4.10 to 5.0, the following applies:
+
+=== Improvements
 
  * The `enableFeaturePreview('IMPROVED_POM_SUPPORT')` flag is no longer necessary
  * The `enableFeaturePreview('STABLE_PUBLISHING')` flag is no longer necessary
+ * Please remove the `--add-modules java.xml.bind` option from `org.gradle.jvmargs`, if set. JAXB is now bundled with Java 9 and higher.
 
 === Potential breaking changes
 
@@ -83,6 +99,7 @@ task myTask {
 ----
  * You can no longer use any of the following characters in domain object names, such as project and task names: <space> `/ \ : < > " ? * |` . You should also not use `.` as a leading or trailing character.
 Running Gradle & build environment::
+ * As mentioned before, Gradle can no longer be run on Java 7. However, you can still use forked compilation and testing to build and test software for Java 6 and above.
  * The `-Dtest.single` command-line option has been removed — use <<java_testing.adoc#test_filtering,test filtering>> instead.
  * The `-Dtest.debug` command-line option has been removed — use the <<java_testing#sec:debugging_java_tests,`--debug-jvm` option>> instead.
  * The `-u`/`--no-search-upward` command-line option has been removed — make sure all your builds have a _settings.gradle_ file.
@@ -93,6 +110,8 @@ Running Gradle & build environment::
 Working with files::
  * You can no longer cast `FileCollection` objects to other types using the `as` keyword or the `asType()` method.
  * You can no longer pass `null` as the configuration action of link:{javadocPath}/org/gradle/api/file/CopySpec.html#from-java.lang.Object-org.gradle.api.Action-[CopySpec.from(Object, Action)].
+ * For better compatibility with the Kotlin DSL, the property setter no longer accepts `null` as a way
+to reset the property back to its default value. Use `DuplicatesStrategy.INHERIT` instead.
  * The `FileCollection.stopExecutionIfEmpty()` method has been removed — use the link:{javadocPath}/org/gradle/api/tasks/SkipWhenEmpty.html[@SkipWhenEmpty] annotation on `FileCollection` task properties instead.
  * The `FileCollection.add()` method has been removed — use link:{groovyDslPath}/org.gradle.api.Project.html#org.gradle.api.Project:files(java.lang.Object++[++])[Project.files()] and link:{groovyDslPath}/org.gradle.api.Project.html#org.gradle.api.Project:fileTree(java.lang.Object)[Project.fileTree()] to create configurable file collections/file trees and add to them via link:{javadocPath}/org/gradle/api/file/ConfigurableFileCollection.html#from-java.lang.Object++...++-[ConfigurableFileCollection.from()].
  * `SimpleFileCollection` has been removed — use link:{groovyDslPath}/org.gradle.api.Project.html#org.gradle.api.Project:files(java.lang.Object++[]++)[Project.files(Object...)] instead.
@@ -107,6 +126,8 @@ Java builds::
  * The `JavaLibrary(PublishArtifact, DependencySet)` constructor has been removed — this was used by the https://plugins.gradle.org/plugin/com.github.johnrengelman.shadow[Shadow Plugin], so make sure you upgrade to at least version 2.x of that plugin.
  * The `JavaBasePlugin.configureForSourceSet()` method has been removed.
  * You can no longer create your own instances of link:{javadocPath}/org/gradle/api/plugins/JavaPluginConvention.html[JavaPluginConvention], link:{javadocPath}/org/gradle/api/plugins/ApplicationPluginConvention.html[ApplicationPluginConvention], link:{javadocPath}/org/gradle/api/plugins/WarPluginConvention.html[WarPluginConvention], link:{javadocPath}/org/gradle/plugins/ear/EarPluginConvention.html[EarPluginConvention], link:{javadocPath}/org/gradle/api/plugins/BasePluginConvention.html[BasePluginConvention], and link:{javadocPath}/org/gradle/api/plugins/ProjectReportsPluginConvention.html[ProjectReportsPluginConvention].
+ * Gradle now bundles <<#rel5.0:jaxb_and_java9, JAXB>> for Java 9 and above.
+ * The link:{groovyDslPath}/org.gradle.api.tasks.javadoc.Javadoc.html[`Javadoc`] and link:{groovyDslPath}/org.gradle.api.tasks.javadoc.Groovydoc.html[`Groovydoc`] tasks now delete the destination dir for the documentation before executing. This has been added to remove stale output files from the last task execution.
 Tasks & properties::
  * The following legacy classes and methods related to <<lazy_configuration#sec:lazy_properties,lazy properties>> have been removed — use link:{javadocPath}/org/gradle/api/model/ObjectFactory.html#property-java.lang.Class-[ObjectFactory.property()] to create `Property` instances:
  ** `PropertyState`
@@ -139,11 +160,21 @@ Miscellaneous::
  * The `Signature.setFile(File)` method has been removed — Gradle does not support changing the output file for the generated signature.
  * The read-only `Signature.toSignArtifact` property has been removed — it should never have been part of the public API.
  * The `@DeferredConfigurable` annotation has been removed.
+ * The method `isDeferredConfigurable` was removed from `ExtensionSchema`.
  * `IdeaPlugin.performPostEvaluationActions()` and `EclipsePlugin.performPostEvaluationActions()` have been removed.
  * `The `BroadcastingCollectionEventRegister.getAddAction()` method has been removed with no replacement.
  * The internal `org.gradle.util` package is no longer imported by default.
 +
 Ideally you shouldn't use classes from this package, but, as a quick fix, you can add explicit imports to your build scripts for those classes.
+ * The Tooling API can no longer connect to builds using a Gradle version below Gradle 2.6. The same applies to builds run through TestKit.
+ * Gradle 5.0 requires a minimum Tooling API client version of 3.0. Older client libraries can no longer run builds with Gradle 5.0.
+ * The `maven` plugin used to publish the highly outdated Maven 2 metadata format. This has been changed and it will now publish Maven 3 metadata, just like the `maven-publish` plugin.
+ * With the removal of Maven 2 support, the methods to configure unique snapshot behavior have also been removed. Maven 3 only supports unique snapshots, so these methods would have had no more effect. We decided to remove them instead of leaving a deprecated no-op in place.
+ * For easier configurability from statically compiled languages such as Java or Kotlin, `CheckstyleReports` and `FindbugsReports` `html` property now return `CustomizableHtmlReport`.
+ * The IdeaModule Tooling API model element contains methods to retrieve resources and test resources so those elements were removed from the result of IdeaModule#getSourceDirs() and IdeaModule#getTestSourceDirs().
+ * In previous Gradle versions the `source` filed in `SourceTask` was accessible from subclasses.
+   This is not the case anymore as the `source` filed is now declared as `private`.
+ *
 
 [[changes_4.10]]
 == Upgrading from 4.9 and earlier
@@ -327,6 +358,90 @@ To override this behavior, you can explicitly declare the configuration to use i
 
 
 == Changes in detail
+
+[[rel5.0:dependency_resolution]]
+=== [5.0] Fixes to dependency resolution
+
+Dependency resolutions fixes have been included in this release.
+By definition this could impact the set of resolved dependencies of your build.
+However the fixed issues are mostly about corner cases and combination with recent features and thus should have a limited impact.
+
+When a dependency constraint matched a real dependency, it was made part of the graph.
+However if for some reason the dependency was later evicted from the graph, the constraint remained present. Now, when the last non-constraint edge to a dependency disappears, all constraints for that dependency will be properly removed from the graph.
+
+[[rel5.0:default_memory_settings]]
+=== [5.0] Default memory settings reduced
+
+The command line client now starts with 64m of heap instead of 1g.
+This may affect builds running directly inside the client VM using --no-daemon mode.
+We discourage the use of --no-daemon, but if you must use it, you can increase the available memory using the GRADLE_OPTS environment variable.
+
+The Gradle daemon now starts with 512m of heap instead of 1g.
+Large projects may have to increase this setting using the `org.gradle.jvmargs` property.
+
+All workers, including compilers and test executors, now start with 512m of heap. The previous default was 1/4th of physical memory.
+Large projects may have to increase this setting on the relevant tasks, e.g. `JavaCompile` or `Test`.
+
+[[rel5.0:default_tool_versions]]
+=== [5.0] New default versions for code quality plugins
+
+The default tool versions of the following code quality plugins have been updated:
+
+ * The Checkstyle plugin now uses 8.12 instead of 6.19 by default.
+ * The CodeNarc plugin now uses 1.2.1 instead of 1.1 by default.
+ * The JaCoCo plugin now uses 0.8.2 instead of 0.8.1 by default.
+ * The PMD plugin now uses 6.8.0 instead of 5.6.1 by default.
++
+In addition, the default ruleset was changed from the now deprecated `java-basic` to `category/java/errorprone.xml`.
++
+We recommend configuring a ruleset explicitly, though.
+
+[[rel5.0:library_upgrades]]
+=== [5.0] Library upgrades
+Several libraries that are used by Gradle have been upgraded:
+
+ * Groovy was upgraded from 2.4.15 to 2.5.2 (see http://groovy-lang.org/releasenotes/groovy-2.5.html about the changes in this release).
+ * Ant has been upgraded from 1.9.11 to 1.9.13.
+ * The AWS SDK used to access S3 backed Maven/Ivy repositories has been upgraded from 1.11.267 to 1.11.407.
+ * The BND library used by the OSGi plugin has been upgraded from 3.4.0 to 4.0.0.
+ * The Google Cloud Storage JSON API Client Library used to access Google Cloud Storage backed Maven/Ivy repositories has been upgraded from v1-rev116-1.23.0 to v1-rev136-1.25.0.
+ * Ivy has been upgraded from 2.2.0 to 2.3.0.
+ * The JUnit Platform libraries used by the `Test` task have been upgraded from 1.0.3 to 1.3.1.
+ * The Maven Wagon libraries used to access Maven repositories have been upgraded from 2.4 to 3.0.0.
+ * SLF4J has been upgraded from 1.7.16 to 1.7.25.
+
+[[rel5.0:jaxb_and_java9]]
+=== [5.0] Gradle now bundles JAXB for Java 9 and above
+
+In order to use S3 backed artifact repositories, it was previously required to add `--add-modules java.xml.bind` to `org.gradle.jvmargs` when running on Java 9 and above.
+
+Since Java 11 no longer contains the `java.xml.bind` module, Gradle now bundles JAXB 2.3.1 (`com.sun.xml.bind:jaxb-impl`) and uses it on Java 9 and above.
+
+Please remove the `--add-modules java.xml.bind` option from `org.gradle.jvmargs`, if set.
+
+[[rel5.0:changes_to_default_task]]
+=== [5.0] Changes to property factory methods on DefaultTask
+
+Property factory methods on DefaultTask are final
+The property factory methods such as newInputFile() are intended to be called from the constructor of a type that extends DefaultTask. These methods are now final to avoid subclasses overriding these methods and using state that is not initialized.
+
+Inputs and outputs are not automatically registered
+The Property instances that are returned by these methods are no longer automatically registered as inputs or outputs of the task. The Property instances need to be declared as inputs or outputs in the usual ways, such as attaching annotations such as @OutputFile or using the runtime API to register the property.
+
+Previously:
+
+``` class MyTask extends DefaultTask { // note: no annotation here final RegularFileProperty outputFile = newOutputFile() }
+
+task myOtherTask { def outputFile = newOutputFile() doLast { ... } }
+
+```
+
+Now:
+
+``` class MyTask extends DefaultTask { @OutputFile // property needs an annotation final RegularFileProperty outputFile = project.objects.fileProperty() }
+
+task myOtherTask { def outputFile = project.objects.fileProperty() outputs.file(outputFile) // or to be registered using the runtime API doLast { ... } }
+```
 
 [[rel4.10:aws_s3_permissions]]
 === [4.10] Publishing to AWS S3 requires new permissions
